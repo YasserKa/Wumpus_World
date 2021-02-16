@@ -73,6 +73,10 @@ public class World
         this ( _debug, _randomAI, _manualAI, _search, null );
     }
 
+    public Tile[][] getBoard() {
+        return this.board;
+    }
+
     public World ( boolean _debug, boolean _randomAI, boolean _manualAI, boolean _search, File worldFile ) throws Exception
     {
         // Operation Flags
