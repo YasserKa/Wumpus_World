@@ -12,7 +12,7 @@ import java.util.*;
 import java.lang.Math;
 
 // mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-d"
-// mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-f maps"
+// mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-f Worlds"
 //
 // mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-d"
 
@@ -65,7 +65,7 @@ public class SearchAI extends Agent {
 
         cameFrom.put(initState, initState);
         costSoFar.put(initState, 0);
-        initState.printWorld(initState.getWorld());
+        // initState.printWorld(initState.getWorld());
 
         int tmp = 20;
         while (frontier.peek() != null) {
@@ -89,7 +89,7 @@ public class SearchAI extends Agent {
 
                 if (costSoFar.get(nextState) == null  || newCost < costSoFar.get(nextState))  {
                     costSoFar.put(nextState, newCost);
-                    int priority = newCost + nextState.getHeuristicCost();
+                    float priority = newCost + nextState.getHeuristicCost();
                     frontier.add(new StateCostPair(nextState, priority));
                     cameFrom.put(nextState, currState);
                 }
@@ -114,7 +114,11 @@ public class SearchAI extends Agent {
     public SearchAI(World.Tile[][] board) throws CloneNotSupportedException {
 
         this.plan = this.AStarSearch(board);
-        System.out.println(plan);
+        // System.out.println(plan);
+        //
+ // The agent's average score: 745.8577880859375
+// The agent's standard deviation: 419.87057717725355
+// 2162
 
 
         // This must be the last instruction.
@@ -130,9 +134,9 @@ public class SearchAI extends Agent {
 
     private class StateCostPair implements Comparable <StateCostPair> {
         private State state;
-        private int cost;
+        private float cost;
 
-        public StateCostPair(State state, int cost) {
+        public StateCostPair(State state, float cost) {
             this.state = state;
             this.cost = cost;
         }
@@ -141,7 +145,7 @@ public class SearchAI extends Agent {
             return this.state;
         }
 
-        public int getCost() {
+        public float getCost() {
             return this.cost;
         }
 
@@ -205,10 +209,10 @@ public class SearchAI extends Agent {
             //     this.actionMade == ((State) other).getActionMade();
 
             return this.positionX == ((State) other).getPositionX() &&
-            this.direction == ((State) other).getDirection() &&
-            this.actionMade == ((State) other).getActionMade() &&
+                this.positionY == ((State) other).getPositionY() &&
+            // this.direction == ((State) other).getDirection();
+            this.actionMade == ((State) other).getActionMade();
             // this.hasArrow() == ((State) other).hasArrow() &&
-                this.positionY == ((State) other).getPositionY();
             // this.hasGold == ((State) other).hasGold() &&
         }
 
@@ -233,13 +237,13 @@ public class SearchAI extends Agent {
             for (int i = 0; i < board.length; i++) {
                 for (int j = 0; j < board[i].length; j++) {
                     String tileState = ".";
-                    if (board[j][i].getPit()) {
+                    if (board[i][j].getPit()) {
                         tileState += "P";
                     }
-                    if (board[j][i].getWumpus()) {
+                    if (board[i][j].getWumpus()) {
                         tileState += "W";
                     }
-                    if (board[j][i].getGold()) {
+                    if (board[i][j].getGold()) {
                         tileState += "G";
                         this.goldX = i;
                         this.goldY = j;
@@ -259,8 +263,9 @@ public class SearchAI extends Agent {
             this.direction = Direction.RIGHT;
         }
 
-        public int getHeuristicCost() {
-            return Math.abs(this.positionX - this.goldX) + Math.abs(this.positionY - this.goldY);
+        public float getHeuristicCost() {
+            // return Math.abs(this.positionX - this.goldX) + Math.abs(this.positionY - this.goldY);
+            return 3.5f * (Math.abs(this.positionX - this.goldX) + Math.abs(this.positionY - this.goldY));
         }
 
         public int getPositionX() {
