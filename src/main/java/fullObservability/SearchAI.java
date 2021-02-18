@@ -11,7 +11,7 @@ import wumpus.World;
 import java.util.*;
 import java.lang.Math;
 
-// mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-d"
+// mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-d maps/simple_map.txt"
 // mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-f Worlds"
 //
 // mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-d"
@@ -24,7 +24,7 @@ public class SearchAI extends Agent {
     public LinkedList<Agent.Action> reconstructPath(Dictionary<State, State> cameFrom, State start, State goal) {
         State current = goal;
         LinkedList<Agent.Action> path = new LinkedList<Agent.Action>();
-        LinkedList<Agent.Action> movingBackPath = new LinkedList<Agent.Action>();
+        // LinkedList<Agent.Action> movingBackPath = new LinkedList<Agent.Action>();
 
         if (goal == null) {
             path.add(Agent.Action.CLIMB);
@@ -32,26 +32,26 @@ public class SearchAI extends Agent {
         }
 
 
-        movingBackPath.add(Agent.Action.TURN_LEFT);
-        movingBackPath.add(Agent.Action.TURN_LEFT);
+        // movingBackPath.add(Agent.Action.TURN_LEFT);
+        // movingBackPath.add(Agent.Action.TURN_LEFT);
 
         while (current != start) {
             Agent.Action madeAction =  current.getActionMade();
             path.addFirst(madeAction);
             current = cameFrom.get(current);
             // create the "going back from starting point" path
-            if (madeAction == Agent.Action.TURN_RIGHT)
-                movingBackPath.add(Agent.Action.TURN_LEFT);
-            if (madeAction == Agent.Action.TURN_LEFT)
-                movingBackPath.add(Agent.Action.TURN_RIGHT);
-            if (madeAction == Agent.Action.FORWARD)
-                movingBackPath.add(Agent.Action.FORWARD);
+            // if (madeAction == Agent.Action.TURN_RIGHT)
+            //     movingBackPath.add(Agent.Action.TURN_LEFT);
+            // if (madeAction == Agent.Action.TURN_LEFT)
+            //     movingBackPath.add(Agent.Action.TURN_RIGHT);
+            // if (madeAction == Agent.Action.FORWARD)
+            //     movingBackPath.add(Agent.Action.FORWARD);
         }
 
-        movingBackPath.add(Agent.Action.CLIMB);
+        path.add(Agent.Action.CLIMB);
 
 
-        path.addAll(movingBackPath);
+        // path.addAll(movingBackPath);
         return path;
     }
 
@@ -71,8 +71,9 @@ public class SearchAI extends Agent {
         while (frontier.peek() != null) {
             State currState = frontier.poll().getState();
 
-            if (currState.hasGold) {
+            if (currState.hasGold() && currState.getPositionX() == 0 && currState.getPositionY() == 0) {
                 goalState = currState;
+
                 break;
             }
 
@@ -114,15 +115,10 @@ public class SearchAI extends Agent {
     public SearchAI(World.Tile[][] board) throws CloneNotSupportedException {
 
         this.plan = this.AStarSearch(board);
-        // System.out.println(plan);
-        //
- // The agent's average score: 745.8577880859375
-// The agent's standard deviation: 419.87057717725355
-// 2162
-
+        // System.out.println(this.plan);
 
         // This must be the last instruction.
-        planIterator = plan.listIterator();
+        planIterator = this.plan.listIterator();
     }
 
     public enum Direction {
@@ -186,7 +182,9 @@ public class SearchAI extends Agent {
         }
         public int compareTo(State other) {
             if (this.positionX == other.getPositionX() &&
-                    this.positionY == other.getPositionY()) {
+                    this.positionY == other.getPositionY() &&
+                    this.hasGold == other.hasGold()
+                    ) {
                 return 0;
             } else {
                 return 1;
@@ -194,7 +192,7 @@ public class SearchAI extends Agent {
         }
         @Override
         public int hashCode() {
-            return Objects.hash(positionX, positionY, direction, actionMade);
+            return Objects.hash(positionX, positionY, direction, actionMade, hasGold);
             // return Objects.hash(positionX, positionY, direction, actionMade, world);
         }
 
@@ -210,10 +208,9 @@ public class SearchAI extends Agent {
 
             return this.positionX == ((State) other).getPositionX() &&
                 this.positionY == ((State) other).getPositionY() &&
-            // this.direction == ((State) other).getDirection();
+            this.direction == ((State) other).getDirection() &&
+            this.hasGold == ((State) other).hasGold() &&
             this.actionMade == ((State) other).getActionMade();
-            // this.hasArrow() == ((State) other).hasArrow() &&
-            // this.hasGold == ((State) other).hasGold() &&
         }
 
         public String[][] getWorld() {
@@ -264,8 +261,11 @@ public class SearchAI extends Agent {
         }
 
         public float getHeuristicCost() {
-            // return Math.abs(this.positionX - this.goldX) + Math.abs(this.positionY - this.goldY);
-            return 3.5f * (Math.abs(this.positionX - this.goldX) + Math.abs(this.positionY - this.goldY));
+            if (this.hasGold) {
+                return (Math.abs(this.positionX) + Math.abs(this.positionY));
+            } else {
+                return (Math.abs(this.positionX - this.goldX) + Math.abs(this.positionY - this.goldY));
+            }
         }
 
         public int getPositionX() {
@@ -496,11 +496,12 @@ public class SearchAI extends Agent {
 
                }
 
+
             // turning limitation. e.g. don't turn to right
             // if at direciton = left  X=0 or
             // X-1 is dangerous
             if (this.direction == Direction.RIGHT) {
-                if (this.positionY != 0 && !this.isPit(this.positionX, this.positionY-1)) {
+                if ((this.positionY != 0 && !this.isPit(this.positionX, this.positionY-1)) ||(this.positionX != 0 && !this.isPit(this.positionX-1, this.positionY))) {
                     actions.add(Agent.Action.TURN_RIGHT);
                 }
                 if (this.positionY != this.rowDimension-1 && !this.isPit(this.positionX, this.positionY+1)) {
@@ -514,7 +515,7 @@ public class SearchAI extends Agent {
             }
 
             if (this.direction == Direction.LEFT) {
-                if (this.positionY != 0 && !this.isPit(this.positionX, this.positionY-1)) {
+                if ((this.positionY != 0 && !this.isPit(this.positionX, this.positionY-1)) || (this.positionX != this.colDimension-1 && !this.isPit(this.positionX+1, this.positionY))) {
                     actions.add(Agent.Action.TURN_LEFT);
                 }
                 if (this.positionY != this.rowDimension-1 && !this.isPit(this.positionX, this.positionY+1)) {
@@ -528,7 +529,7 @@ public class SearchAI extends Agent {
             }
 
             if (this.direction == Direction.TOP) {
-                if (this.positionX != 0 && !this.isPit(this.positionX-1, this.positionY)) {
+                if ((this.positionX != 0 && !this.isPit(this.positionX-1, this.positionY)) || (this.positionY != 0 && !this.isPit(this.positionX, this.positionY-1))) {
                     actions.add(Agent.Action.TURN_LEFT);
                 }
                 if (this.positionX != this.colDimension-1 && !this.isPit(this.positionX+1, this.positionY)) {
@@ -542,7 +543,7 @@ public class SearchAI extends Agent {
             }
 
             if (this.direction == Direction.BOTTOM) {
-                if (this.positionX != 0 && !this.isPit(this.positionX-1, this.positionY)) {
+                if ((this.positionX != 0 && !this.isPit(this.positionX-1, this.positionY)) || (this.positionY != this.rowDimension-1 && !this.isPit(this.positionX, this.positionY+1))) {
                     actions.add(Agent.Action.TURN_RIGHT);
                 }
                 if (this.positionX != this.colDimension-1 && !this.isPit(this.positionX+1, this.positionY)) {
