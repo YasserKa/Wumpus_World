@@ -3,59 +3,36 @@ package fullObservability;
 import wumpus.Agent;
 import wumpus.World;
 
-// import java.util.LinkedList;
-// import java.util.ListIterator;
-// import java.util.ArrayList;
-// import java.util.Arrays;
-// import java.util.PriorityQueue;
 import java.util.*;
 import java.lang.Math;
 
 // mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-d maps/simple_map.txt"
-// mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-f Worlds"
-//
+// mvn install; mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-f Wumpus_World_Generator/Worlds"
 // mvn exec:java -Dexec.mainClass=fullObservability.MainSearch -Dexec.args="-d"
 
 public class SearchAI extends Agent {
     private ListIterator<Action> planIterator;
     private Dictionary<State, State> cameFrom = new Hashtable<State, State>();
     private Dictionary<State, Integer> costSoFar = new Hashtable<State, Integer>();
+    private LinkedList<Action> plan;
 
-    public LinkedList<Agent.Action> reconstructPath(Dictionary<State, State> cameFrom, State start, State goal) {
-        State current = goal;
-        LinkedList<Agent.Action> path = new LinkedList<Agent.Action>();
-        // LinkedList<Agent.Action> movingBackPath = new LinkedList<Agent.Action>();
-
-        if (goal == null) {
-            path.add(Agent.Action.CLIMB);
-            return path;
-        }
-
-
-        // movingBackPath.add(Agent.Action.TURN_LEFT);
-        // movingBackPath.add(Agent.Action.TURN_LEFT);
-
-        while (current != start) {
-            Agent.Action madeAction =  current.getActionMade();
-            path.addFirst(madeAction);
-            current = cameFrom.get(current);
-            // create the "going back from starting point" path
-            // if (madeAction == Agent.Action.TURN_RIGHT)
-            //     movingBackPath.add(Agent.Action.TURN_LEFT);
-            // if (madeAction == Agent.Action.TURN_LEFT)
-            //     movingBackPath.add(Agent.Action.TURN_RIGHT);
-            // if (madeAction == Agent.Action.FORWARD)
-            //     movingBackPath.add(Agent.Action.FORWARD);
-        }
-
-        path.add(Agent.Action.CLIMB);
-
-
-        // path.addAll(movingBackPath);
-        return path;
+    public enum Direction {
+        RIGHT,
+        LEFT,
+        TOP,
+        BOTTOM,
     }
 
-    public LinkedList<Action> AStarSearch(World.Tile[][] board) throws CloneNotSupportedException{
+    public SearchAI() throws CloneNotSupportedException {
+    }
+
+    public SearchAI(World.Tile[][] board) throws CloneNotSupportedException {
+        this.plan = this.AStarSearch(board);
+
+        planIterator = this.plan.listIterator();
+    }
+
+    private LinkedList<Action> AStarSearch(World.Tile[][] board) throws CloneNotSupportedException{
 
         Queue <StateCostPair> frontier = new PriorityQueue<StateCostPair>();
         State initState = new State(board);
@@ -65,9 +42,7 @@ public class SearchAI extends Agent {
 
         cameFrom.put(initState, initState);
         costSoFar.put(initState, 0);
-        // initState.printWorld(initState.getWorld());
 
-        int tmp = 20;
         while (frontier.peek() != null) {
             State currState = frontier.poll().getState();
 
@@ -86,8 +61,6 @@ public class SearchAI extends Agent {
                 int newCost = costSoFar.get(currState) +  currState.getActionCost(action);
 
 
-                // System.out.println(nextState);
-
                 if (costSoFar.get(nextState) == null  || newCost < costSoFar.get(nextState))  {
                     costSoFar.put(nextState, newCost);
                     float priority = newCost + nextState.getHeuristicCost();
@@ -95,37 +68,33 @@ public class SearchAI extends Agent {
                     cameFrom.put(nextState, currState);
                 }
             }
-            // tmp--;
-            if (tmp == 0) {
-                break;
-            }
-
-            // System.out.println("NEW FRONT");
-            // System.out.println(frontier.size());
         }
 
         return this.reconstructPath(cameFrom, initState, goalState);
     }
-    private LinkedList<Action> plan;
+
+    private LinkedList<Agent.Action> reconstructPath(Dictionary<State, State> cameFrom, State start, State goal) {
+        State current = goal;
+        LinkedList<Agent.Action> path = new LinkedList<Agent.Action>();
+
+        if (goal == null) {
+            path.add(Agent.Action.CLIMB);
+            return path;
+        }
+
+        while (current != start) {
+            Agent.Action madeAction =  current.getActionMade();
+            path.addFirst(madeAction);
+            current = cameFrom.get(current);
+        }
+
+        path.add(Agent.Action.CLIMB);
+
+        return path;
+    }
 
     public LinkedList<Action> getPlan() {
         return this.plan;
-    }
-
-    public SearchAI(World.Tile[][] board) throws CloneNotSupportedException {
-
-        this.plan = this.AStarSearch(board);
-        // System.out.println(this.plan);
-
-        // This must be the last instruction.
-        planIterator = this.plan.listIterator();
-    }
-
-    public enum Direction {
-        RIGHT,
-        LEFT,
-        TOP,
-        BOTTOM,
     }
 
     private class StateCostPair implements Comparable <StateCostPair> {
@@ -162,8 +131,10 @@ public class SearchAI extends Agent {
         private int colDimension;
         private int rowDimension;
 
+
         private Boolean hasArrow;
         private Boolean hasGold;
+        private Boolean isWumpusAlive;
         private Direction direction;
 
         private int goldX;
@@ -184,7 +155,7 @@ public class SearchAI extends Agent {
             if (this.positionX == other.getPositionX() &&
                     this.positionY == other.getPositionY() &&
                     this.hasGold == other.hasGold()
-                    ) {
+               ) {
                 return 0;
             } else {
                 return 1;
@@ -192,29 +163,18 @@ public class SearchAI extends Agent {
         }
         @Override
         public int hashCode() {
-            return Objects.hash(positionX, positionY, direction, actionMade, hasGold);
-            // return Objects.hash(positionX, positionY, direction, actionMade, world);
+            return Objects.hash(positionX, positionY, direction, actionMade, hasGold, isWumpusAlive);
         }
 
         @Override
         public boolean equals(Object other)
         {
-            // return this.positionX == ((State) other).getPositionX() &&
-            //     this.positionY == ((State) other).getPositionY() &&
-            //     this.direction == ((State) other).getDirection() &&
-            //     // this.hasGold == ((State) other).hasGold() &&
-            //     // this.hasArrow() == ((State) other).hasArrow() &&
-            //     this.actionMade == ((State) other).getActionMade();
-
             return this.positionX == ((State) other).getPositionX() &&
                 this.positionY == ((State) other).getPositionY() &&
-            this.direction == ((State) other).getDirection() &&
-            this.hasGold == ((State) other).hasGold() &&
-            this.actionMade == ((State) other).getActionMade();
-        }
-
-        public String[][] getWorld() {
-            return this.world;
+                this.direction == ((State) other).getDirection() &&
+                this.hasGold == ((State) other).hasGold() &&
+                this.isWumpusAlive == ((State) other).isWumpusAlive() &&
+                this.actionMade == ((State) other).getActionMade();
         }
 
         public void printWorld(String[][] board) {
@@ -225,6 +185,47 @@ public class SearchAI extends Agent {
                 }
                 System.out.println();
             }
+        }
+
+        public State (Set<String> safeTiles, String currentPos, Direction direction) {
+            this.colDimension = 0;
+            this.rowDimension = 0;
+
+            for (String safeTile: safeTiles) {
+                String[] pos = safeTile.split("_");
+                int x = Integer.parseInt(pos[0]);
+                int y = Integer.parseInt(pos[1]);
+                if (x > this.rowDimension)
+                    this.rowDimension = x;
+                if (y > this.colDimension)
+                    this.colDimension = y;
+            }
+            this.rowDimension++;
+            this.colDimension++;
+            // System.out.println("DIMENSION");
+            // System.out.print(rowDimension);
+            // System.out.println(colDimension);
+            this.world = new String[this.rowDimension][this.colDimension];
+             // Arrays.fill(this.world, "");
+            // Arrays.fill(this.world, "");
+            // for (double[] row: matrix)
+            //     Arrays.fill(row, 1.0);
+
+            // System.out.println(Arrays.deepToString(this.world));
+            for (String safeTile: safeTiles) {
+                String[] pos = safeTile.split("_");
+                int x = Integer.parseInt(pos[0]);
+                int y = Integer.parseInt(pos[1]);
+                this.world[x][y] = "S";
+            }
+            // System.out.println(Arrays.deepToString(this.world));
+
+            String[] pos = currentPos.split("_");
+            this.positionX = Integer.parseInt(pos[0]);
+            this.positionY = Integer.parseInt(pos[1]);
+            // this.hasArrow = true;
+            // this.hasGold = false;
+            this.direction = direction;
         }
 
         public State (World.Tile[][] board) {
@@ -257,7 +258,12 @@ public class SearchAI extends Agent {
             this.positionY = 0;
             this.hasArrow = true;
             this.hasGold = false;
+            this.isWumpusAlive = true;
             this.direction = Direction.RIGHT;
+        }
+
+        public float getHeuristicCostPartial(int distX, int distY) {
+            return (Math.abs(this.positionX - distX) + Math.abs(this.positionY - distY));
         }
 
         public float getHeuristicCost() {
@@ -294,6 +300,21 @@ public class SearchAI extends Agent {
 
         public Agent.Action getActionMade() {
             return this.actionMade;
+        }
+
+        public String[][] getWorld() {
+            return this.world;
+        }
+
+        public Boolean isWumpusAlive() {
+            return this.isWumpusAlive;
+        }
+
+        private Boolean isPit(int positionX, int positionY) {
+            return this.world[positionX][positionY].contains("P");
+        }
+        private Boolean isWumpus(int positionX, int positionY) {
+            return this.world[positionX][positionY].contains("W");
         }
 
         public int getActionCost(Agent.Action action) {
@@ -347,7 +368,6 @@ public class SearchAI extends Agent {
                     case TOP:
                         this.direction = Direction.RIGHT;
                         break;
-
                 }
             } else if (action == Agent.Action.TURN_LEFT) {
                 switch(this.direction) {
@@ -394,6 +414,7 @@ public class SearchAI extends Agent {
                             case  RIGHT:
                                 for ( int x = this.positionX; x < this.colDimension; ++x )
                                     if ( this.world[x][this.positionY].contains("W") ) {
+                                        this.isWumpusAlive = false;
                                         this.world[x][this.positionY] = this.world[x][this.positionY].replaceFirst("W", "");
                                         break;
                                     }
@@ -401,6 +422,7 @@ public class SearchAI extends Agent {
                             case  BOTTOM:
                                 for ( int y = this.positionY; y >= 0; --y )
                                     if ( this.world[this.positionX][y].contains("W") ) {
+                                        this.isWumpusAlive = false;
                                         this.world[this.positionX][y] = this.world[this.positionX][y].replaceFirst("W", "");
                                         break;
                                     }
@@ -408,6 +430,7 @@ public class SearchAI extends Agent {
                             case  LEFT:
                                 for ( int x = this.positionX; x >= 0; --x )
                                     if ( this.world[x][this.positionY].contains("W") ) {
+                                        this.isWumpusAlive = false;
                                         this.world[x][this.positionY] = this.world[x][this.positionY].replaceFirst("W", "");
                                         break;
                                     }
@@ -415,6 +438,7 @@ public class SearchAI extends Agent {
                             case  TOP:
                                 for ( int y = this.positionY; y < this.rowDimension; ++y )
                                     if ( this.world[this.positionX][y].contains("W") ) {
+                                        this.isWumpusAlive = false;
                                         this.world[this.positionX][y] = this.world[this.positionX][y].replaceFirst("W", "");
                                         break;
                                     }
@@ -447,14 +471,6 @@ public class SearchAI extends Agent {
             clone.setWorld(clonedWorld);
             return clone;
         }
-
-        private Boolean isPit(int positionX, int positionY) {
-            return this.world[positionX][positionY].contains("P");
-        }
-        private Boolean isWumpus(int positionX, int positionY) {
-            return this.world[positionX][positionY].contains("W");
-        }
-
         public ArrayList<Agent.Action> getAvailableActions() {
 
             ArrayList<Agent.Action> actions = new ArrayList<Agent.Action>();
@@ -487,10 +503,6 @@ public class SearchAI extends Agent {
                     !this.isPit(nextPositionX, nextPositionY) &&
                     !this.isWumpus(nextPositionX, nextPositionY)
                ) {
-                // this.printWorld(this.world);
-                // System.out.print(Arrays.deepToString(this.world));
-                // System.out.print(nextPositionX);
-                // System.out.println(nextPositionY);
 
                 actions.add(Agent.Action.FORWARD);
 
@@ -564,7 +576,247 @@ public class SearchAI extends Agent {
             return actions;
         }
 
+        // PARTIALLY OBSERVABLE CODE
+        public ArrayList<Agent.Action> getAvailableActionsPartial() {
+
+            ArrayList<Agent.Action> actions = new ArrayList<Agent.Action>();
+
+            int nextPositionX = this.positionX;
+            int nextPositionY = this.positionY;
+
+            switch (this.direction) {
+                case TOP:
+                    ++nextPositionY;
+                    break;
+                case RIGHT:
+                    ++nextPositionX;
+                    break;
+                case BOTTOM:
+                    --nextPositionY;
+                    break;
+                case LEFT:
+                    --nextPositionX;
+                    break;
+            }
+
+            // System.out.println(Arrays.deepToString(this.world));
+            // this.isSafePartial(nextPositionX, nextPositionY);
+            if ( nextPositionX < this.rowDimension &&
+                    nextPositionX >= 0 &&
+                    nextPositionY < this.colDimension &&
+                    nextPositionY >= 0 &&
+                    this.isSafePartial(nextPositionX, nextPositionY)
+               ) {
+                actions.add(Agent.Action.FORWARD);
+               }
+
+
+            // turning limitation. e.g. don't turn to right
+            // if at direciton = left  X=0 or
+            // X-1 is dangerous
+            if (this.direction == Direction.RIGHT) {
+                if ((this.positionY != 0 && this.isSafePartial(this.positionX, this.positionY-1)) ||(this.positionX != 0 && this.isSafePartial(this.positionX-1, this.positionY))) {
+                    actions.add(Agent.Action.TURN_RIGHT);
+                }
+                if (this.positionY != this.colDimension-1 && this.isSafePartial(this.positionX, this.positionY+1)) {
+                    actions.add(Agent.Action.TURN_LEFT);
+                }
+            }
+
+            if (this.direction == Direction.LEFT) {
+                if ((this.positionY != 0 && this.isSafePartial(this.positionX, this.positionY-1)) || (this.positionX != this.rowDimension-1 && this.isSafePartial(this.positionX+1, this.positionY))) {
+                    actions.add(Agent.Action.TURN_LEFT);
+                }
+                if (this.positionY != this.colDimension-1 && this.isSafePartial(this.positionX, this.positionY+1)) {
+                    actions.add(Agent.Action.TURN_RIGHT);
+                }
+            }
+
+            if (this.direction == Direction.TOP) {
+                if ((this.positionX != 0 && this.isSafePartial(this.positionX-1, this.positionY)) || (this.positionY != 0 && this.isSafePartial(this.positionX, this.positionY-1))) {
+                    actions.add(Agent.Action.TURN_LEFT);
+                }
+                if (this.positionX != this.rowDimension-1 && this.isSafePartial(this.positionX+1, this.positionY)) {
+                    actions.add(Agent.Action.TURN_RIGHT);
+                }
+            }
+
+            if (this.direction == Direction.BOTTOM) {
+                if ((this.positionX != 0 && this.isSafePartial(this.positionX-1, this.positionY)) || (this.positionY != this.colDimension-1 && this.isSafePartial(this.positionX, this.positionY+1))) {
+                    actions.add(Agent.Action.TURN_RIGHT);
+                }
+                if (this.positionX != this.rowDimension-1 && this.isSafePartial(this.positionX+1, this.positionY)) {
+                    actions.add(Agent.Action.TURN_LEFT);
+                }
+            }
+            return actions;
+        }
+
+        private Boolean isSafePartial(int x, int y) {
+            if (this.world[x][y] == null) {
+                return false;
+            }
+            return this.world[x][y].equals("S");
+        }
+
+        public int getActionCostPartial(Agent.Action action) {
+            int cost = 1;
+
+            switch (action) {
+                case FORWARD:
+                    int nextPositionX = this.positionX;
+                    int nextPositionY = this.positionY;
+
+                    switch (this.direction) {
+                        case TOP:
+                            ++nextPositionY;
+                            break;
+                        case RIGHT:
+                            ++nextPositionX;
+                            break;
+                        case BOTTOM:
+                            --nextPositionY;
+                            break;
+                        case LEFT:
+                            --nextPositionX;
+                            break;
+                    }
+
+                    if (!this.isSafePartial(nextPositionX, nextPositionY)) {
+                        cost += 1000;
+                    }
+                    break;
+            }
+            return cost;
+        }
+
+        public void makeActionPartial(Agent.Action action) {
+            this.actionMade = action;
+
+            switch (action)
+            {
+                case TURN_LEFT:
+                case TURN_RIGHT:
+                    this.turn(action);
+                    break;
+                case FORWARD:
+                    if ( this.direction == Direction.RIGHT && this.positionX+1 < this.rowDimension )
+                        ++this.positionX;
+                    else if ( this.direction == Direction.BOTTOM && this.positionY-1 >= 0 )
+                        --this.positionY;
+                    else if ( this.direction == Direction.LEFT && this.positionX-1 >= 0 )
+                        --this.positionX;
+                    else if ( this.direction == Direction.TOP && this.positionY+1 < this.colDimension )
+                        ++this.positionY;
+                    break;
+            }
+
+        }
+
     }
+
+    //// FOR PARTIAL OBSERVABLE
+
+    public LinkedList<Action> getSafeRoute(String currentPos, String direction, String distPos, Set<String> safeTiles) throws CloneNotSupportedException {
+        LinkedList<Agent.Action> plan = new LinkedList<Agent.Action>();
+
+        // System.out.println(currentPos);
+        // System.out.println(distPos);
+        // System.out.println(safeTiles);
+        // include it for the state object
+        safeTiles.add(distPos);
+        plan = this.AStarSearchForUnobservable(currentPos, this.getDirectionFromString(direction), distPos, safeTiles);
+
+        // System.out.println(plan);
+
+        return plan;
+    }
+
+    private Direction getDirectionFromString(String direction) {
+        Direction directionEnum = null;
+        switch(direction) {
+            case "RIGHT":
+                directionEnum = Direction.RIGHT;
+                break;
+            case "BOTTOM":
+                directionEnum = Direction.BOTTOM;
+                break;
+            case "LEFT":
+                directionEnum = Direction.LEFT;
+                break;
+            case "TOP":
+                directionEnum = Direction.TOP;
+                break;
+        }
+        return directionEnum;
+    }
+
+    public LinkedList<Action> AStarSearchForUnobservable(String currentPos, Direction direction, String distPos, Set<String> safeTiles) throws CloneNotSupportedException{
+
+        Queue <StateCostPair> frontier = new PriorityQueue<StateCostPair>();
+
+        State initState = new State (safeTiles, currentPos, direction);
+        State goalState = null;
+
+        frontier.add(new StateCostPair(initState, 0));
+
+        String[] pos = distPos.split("_");
+        int goalX = Integer.parseInt(pos[0]);
+        int goalY = Integer.parseInt(pos[1]);
+
+        cameFrom.put(initState, initState);
+        costSoFar.put(initState, 0);
+
+        while (frontier.peek() != null) {
+            State currState = frontier.poll().getState();
+
+
+            if (currState.getPositionX() == goalX && currState.getPositionY() == goalY) {
+                goalState = currState;
+
+                break;
+            }
+
+            ArrayList<Agent.Action> actions = currState.getAvailableActionsPartial();
+
+            for (Agent.Action action: actions) {
+                State nextState = (State) currState.clone();
+                nextState.makeActionPartial(action);
+
+
+                int newCost = costSoFar.get(currState) +  currState.getActionCostPartial(action);
+                // System.out.println("NEW ACTION");
+                // System.out.print(nextState.getPositionX());
+                // System.out.println(nextState.getPositionY());
+                // System.out.println(newCost);
+                // System.out.println(costSoFar.get(nextState));
+
+                if (costSoFar.get(nextState) == null  || newCost < costSoFar.get(nextState))  {
+                    costSoFar.put(nextState, newCost);
+                    float priority = newCost + nextState.getHeuristicCostPartial(goalX, goalY);
+                    frontier.add(new StateCostPair(nextState, priority));
+                    cameFrom.put(nextState, currState);
+                }
+            }
+        }
+
+        return this.reconstructPathPartial(cameFrom, initState, goalState);
+    }
+
+
+    public LinkedList<Agent.Action> reconstructPathPartial(Dictionary<State, State> cameFrom, State start, State goal) {
+        State current = goal;
+        LinkedList<Agent.Action> path = new LinkedList<Agent.Action>();
+
+        while (current != start) {
+            Agent.Action madeAction =  current.getActionMade();
+            path.addFirst(madeAction);
+            current = cameFrom.get(current);
+        }
+
+        return path;
+    }
+
 
 
     @Override
